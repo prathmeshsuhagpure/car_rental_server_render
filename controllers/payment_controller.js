@@ -60,9 +60,6 @@ const getRazorpayInstance = () => {
   });
 };
 
-// @desc    Save card payment information
-// @route   POST /api/payments/create
-// @access  Private
 const createPayment = async (req, res) => {
   try {
     const { cardNumber, expiryDate, cvv, fullName, email, country, zip } = req.body;
@@ -197,11 +194,13 @@ const verifyRazorpayPayment = async (req, res) => {
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(sign.toString())
       .digest('hex');
+      console.log("Using Razorpay Secret:", process.env.RAZORPAY_KEY_SECRET);
+
 
     // Verify signature
     if (razorpay_signature === expectedSign) {
       // Find and update payment record
-      const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
+      /* const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
 
       if (!payment) {
         return res.status(404).json({
@@ -213,7 +212,7 @@ const verifyRazorpayPayment = async (req, res) => {
       payment.razorpayPaymentId = razorpay_payment_id;
       payment.razorpaySignature = razorpay_signature;
       payment.status = 'captured';
-      await payment.save();
+      await payment.save(); */
 
       res.status(200).json({
         success: true,
