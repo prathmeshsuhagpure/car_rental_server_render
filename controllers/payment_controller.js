@@ -172,55 +172,48 @@ const createRazorpayOrder = async (req, res) => {
 };
 
 const verifyRazorpayPayment = async (req, res) => {
-  console.log('VERIFY BODY:', req.body);
-  console.log('ORDER ID:', razorpay_order_id);
-  console.log('PAYMENT ID:', razorpay_payment_id);
-  console.log('SIGNATURE FROM FLUTTER:', razorpay_signature);
-
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Missing fields' });
+      return res.status(400).json({
+        success: false,
+        message: 'Missing payment verification details',
+      });
     }
 
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const expectedSignature = crypto
+
+    const expectedSign = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest('hex');
-      console.log('GENERATED SIGNATURE:', expectedSign);
-      console.log(
-        'SIGNATURE MATCH:',
-          expectedSign === razorpay_signature
-);
 
-
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(expectedSignature),
-      Buffer.from(razorpay_signature)
-    );
-
-    if (!isValid) {
-      return res.status(400).json({ success: false, message: 'Invalid signature' });
+    if (expectedSign !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature',
+      });
     }
 
-    const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
-
-    if (!payment) {
-      return res.status(404).json({ success: false, message: 'Payment not found' });
-    }
-
-    payment.razorpayPaymentId = razorpay_payment_id;
-    payment.razorpaySignature = razorpay_signature;
-    payment.status = 'captured';
-    await payment.save();
-
-    res.json({ success: true, message: 'Payment verified' });
+    return res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      paymentId: razorpay_payment_id,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('Verify payment crash:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal verification error',
+    });
   }
 };
+
 
 
 const getPaymentHistory = async (req, res) => {
