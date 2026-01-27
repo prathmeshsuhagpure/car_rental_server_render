@@ -4,11 +4,30 @@ const Review = require("../models/review_model");
 
 const getHostDashboard = async (req, res) => {
   try {
-    const hostId = req.user._id; 
+    const hostId = req.user._id;
+    const now = new Date();
+
+    // Upcoming → Active
+    await Booking.updateMany(
+      {
+        bookingStatus: "completed",
+        rentalStatus: "upcoming",
+        startDate: { $lte: now },
+      },
+      { $set: { rentalStatus: "active" } }
+    );
+
+    // Active → Completed
+    await Booking.updateMany(
+      {
+        rentalStatus: "active",
+        endDate: { $lt: now },
+      },
+      { $set: { rentalStatus: "completed" } }
+    );
 
     const totalCars = await Car.countDocuments({ hostId });
 
-    const now = new Date();
     const activeRentals = await Booking.countDocuments({
       hostId,
       bookingStatus: "completed",
@@ -21,7 +40,7 @@ const getHostDashboard = async (req, res) => {
           hostId,
           bookingStatus: "completed",
           startDate: {
-            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            $gte: new Date(now.getFullYear(), now.getMonth(), 1),
           },
         },
       },
@@ -62,7 +81,7 @@ const getHostDashboard = async (req, res) => {
   }
 };
 
-module.exports = {getHostDashboard};
+module.exports = { getHostDashboard };
  */
 
 const Car = require("../models/car_model");
@@ -142,7 +161,80 @@ const getHostDashboard = async (req, res) => {
       .limit(3);
 
     /* --------------------------------------------------
-       3️⃣ RESPONSE
+       3️⃣ FETCH CAR-SPECIFIC RENTAL INFORMATION
+       -------------------------------------------------- */
+
+    // Get all cars for this host
+    const hostCars = await Car.find({ hostId }).select(
+      "_id name model images"
+    );
+
+    // For each car, find its current rental status
+    const carsWithRentalInfo = await Promise.all(
+      hostCars.map(async (car) => {
+        // Find active rental for this car
+        const activeBooking = await Booking.findOne({
+          carId: car._id,
+          bookingStatus: "completed",
+          rentalStatus: "active",
+        })
+          .populate("userId", "name")
+          .sort({ startDate: -1 });
+
+        if (activeBooking) {
+          return {
+            carId: car._id.toString(),
+            carName: car.name,
+            carModel: car.model,
+            carImage: car.images && car.images.length > 0 ? car.images[0] : null,
+            rentalStatus: "active",
+            renterName: activeBooking.userId?.name || "Unknown",
+            rentalStartDate: activeBooking.startDate.toISOString(),
+            rentalEndDate: activeBooking.endDate.toISOString(),
+          };
+        }
+
+        // Find upcoming rental for this car
+        const upcomingBooking = await Booking.findOne({
+          carId: car._id,
+          bookingStatus: "completed",
+          rentalStatus: "upcoming",
+        })
+          .populate("userId", "name")
+          .sort({ startDate: 1 });
+
+        if (upcomingBooking) {
+          return {
+            carId: car._id.toString(),
+            carName: car.name,
+            carModel: car.model,
+            carImage: car.images && car.images.length > 0 ? car.images[0] : null,
+            rentalStatus: "upcoming",
+            renterName: upcomingBooking.userId?.name || "Unknown",
+            rentalStartDate: upcomingBooking.startDate.toISOString(),
+            rentalEndDate: upcomingBooking.endDate.toISOString(),
+          };
+        }
+
+        // Check if car is under maintenance (if you have this field in your Car model)
+        const isUnderMaintenance = car.isUnderMaintenance || false;
+
+        // No active or upcoming rental - car is available or under maintenance
+        return {
+          carId: car._id.toString(),
+          carName: car.name,
+          carModel: car.model,
+          carImage: car.images && car.images.length > 0 ? car.images[0] : null,
+          rentalStatus: isUnderMaintenance ? "maintenance" : "available",
+          renterName: null,
+          rentalStartDate: null,
+          rentalEndDate: null,
+        };
+      })
+    );
+
+    /* --------------------------------------------------
+       4️⃣ RESPONSE
        -------------------------------------------------- */
 
     res.status(200).json({
@@ -150,13 +242,15 @@ const getHostDashboard = async (req, res) => {
       activeRentals,
       monthlyEarnings: monthlyEarnings[0]?.total || 0,
       rating: ratingData[0]?.avgRating || 0,
+      cars: carsWithRentalInfo, // NEW: Car-specific rental information
       recentActivities: recentBookings.map((b) => ({
         title: `${b.carName} booked`,
         subtitle: `${b.startDate.toDateString()} • ₹${b.totalAmount}`,
       })),
     });
   } catch (error) {
-    res.status(500).json({ message: "Dashboard error", error });
+    console.error("Dashboard error:", error);
+    res.status(500).json({ message: "Dashboard error", error: error.message });
   }
 };
 
