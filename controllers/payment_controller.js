@@ -1,53 +1,7 @@
-/* const PaymentMethod = require('../models/payment_model');
-
-const createPayment = async (req, res) => {
-  try {
-    const { fullName, email, cardNumber, expiryDate, cvv, country, zip, /* method  } = req.body;
-
-    // Validate required fields
-    if (!fullName || !email || !cardNumber || !expiryDate || !cvv || !country || !zip /* || !method ) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields are required',
-      });
-    }
-
-    // Create new payment method
-    const paymentMethod = new PaymentMethod({
-      fullName,
-      email,
-      cardNumber,
-      expiryDate,
-      cvv,
-      country,
-      zip,
-      //method,
-    });
-
-    await paymentMethod.save();
-
-    res.status(201).json({
-      success: true,
-      data: paymentMethod,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
-  }
-}
-
-module.exports = {
-  createPayment,
-}; */
-
-const Razorpay = require('razorpay');
+/* const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Payment = require('../models/payment_model');
 const connectDB = require('../config/db');
-
 
 const getRazorpayInstance = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -58,56 +12,6 @@ const getRazorpayInstance = () => {
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET
   });
-};
-
-const createPayment = async (req, res) => {
-  try {
-    const { cardNumber, expiryDate, cvv, fullName, email, country, zip } = req.body;
-    const userId = req.user._id;
-
-    // Validate required fields
-    if (!cardNumber || !expiryDate || !cvv || !fullName || !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required payment details'
-      });
-    }
-
-    // Mask card number (store only last 4 digits for security)
-    const maskedCardNumber = `****-****-****-${cardNumber.slice(-4)}`;
-
-    // Create payment record
-    const payment = await Payment.create({
-      userId,
-      amount: 0, // Will be updated when linked to booking
-      status: 'created',
-      paymentMethod: 'card',
-      cardDetails: {
-        cardNumber: maskedCardNumber,
-        expiryDate,
-        fullName,
-        email,
-        country,
-        zip
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Payment information saved successfully',
-      data: {
-        paymentId: payment._id,
-        cardNumber: maskedCardNumber
-      }
-    });
-  } catch (error) {
-    console.error('Create payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to save payment information',
-      error: error.message
-    });
-  }
 };
 
 const createRazorpayOrder = async (req, res) => {
@@ -362,4 +266,239 @@ module.exports = {
   getPaymentHistory,
   getPaymentById,
   refundPayment
+}; */
+
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+const Payment = require('../models/payment_model');
+const connectDB = require('../config/db');
+
+const getRazorpayInstance = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay credentials are missing');
+  }
+
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+};
+
+const createRazorpayOrder = async (req, res) => {
+  try {
+    await connectDB();
+
+    if (!req.user?._id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated',
+      });
+    }
+
+    const { amount, currency = 'INR' } = req.body;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid amount',
+      });
+    }
+
+    const razorpay = getRazorpayInstance();
+    const amountInPaise = Math.round(amount * 100);
+
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency,
+      receipt: `receipt_${Date.now()}`,
+      payment_capture: 1,
+    });
+
+    // ✅ CREATE PAYMENT DOCUMENT (ONLY PLACE)
+    const payment = await Payment.create({
+      userId: req.user._id,
+      razorpayOrderId: order.id,
+      amount,
+      currency,
+      status: 'created',
+      paymentMethod: 'card',
+    });
+
+    res.status(201).json({
+      success: true,
+      orderId: order.id,
+      paymentId: payment._id,
+      amount,
+      currency,
+    });
+  } catch (error) {
+    console.error('Create Razorpay order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create order',
+    });
+  }
+};
+
+const verifyRazorpayPayment = async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing Razorpay verification data',
+      });
+    }
+
+    // 🔐 Verify signature
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment signature',
+      });
+    }
+
+    const payment = await Payment.findOneAndUpdate(
+      { razorpayOrderId: razorpay_order_id },
+      {
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        status: 'captured',
+      },
+      { new: true }
+    );
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment record not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      paymentId: payment._id,
+    });
+  } catch (error) {
+    console.error('Verify payment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Payment verification failed',
+    });
+  }
+};
+
+const getPaymentHistory = async (req, res) => {
+  try {
+    const payments = await Payment.find({ userId: req.user._id })
+      .populate('bookingId')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      payments,
+    });
+  } catch (error) {
+    console.error('Get payment history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payment history',
+    });
+  }
+};
+
+const getPaymentById = async (req, res) => {
+  try {
+    const payment = await Payment.findOne({
+      _id: req.params.paymentId,
+      userId: req.user._id,
+    }).populate('bookingId');
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      payment,
+    });
+  } catch (error) {
+    console.error('Get payment by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payment',
+    });
+  }
+};
+
+const refundPayment = async (req, res) => {
+  try {
+    const { paymentId, amount, reason } = req.body;
+    const razorpay = getRazorpayInstance();
+
+    const payment = await Payment.findOne({
+      _id: paymentId,
+      userId: req.user._id,
+    });
+
+    if (!payment || !payment.razorpayPaymentId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found or not captured',
+      });
+    }
+
+    if (payment.status === 'refunded') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment already refunded',
+      });
+    }
+
+    const refund = await razorpay.payments.refund(
+      payment.razorpayPaymentId,
+      {
+        amount: Math.round(amount * 100),
+        notes: { reason },
+      }
+    );
+
+    payment.status = 'refunded';
+    payment.refundId = refund.id;
+    payment.refundAmount = amount;
+    payment.refundReason = reason;
+    await payment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Refund successful',
+    });
+  } catch (error) {
+    console.error('Refund error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Refund failed',
+    });
+  }
+};
+
+module.exports = {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getPaymentHistory,
+  getPaymentById,
+  refundPayment,
 };

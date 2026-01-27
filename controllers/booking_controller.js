@@ -13,7 +13,6 @@ const createBooking = async (req, res) => {
       pickUpLocation,
       dropOffLocation,
       amount,
-      paymentId,
       paymentMethod,
     } = req.body;
 
@@ -87,6 +86,11 @@ const createBooking = async (req, res) => {
       bookingStatus: 'completed',
       paymentStatus: 'completed',
     });
+
+    await Payment.findByIdAndUpdate(paymentId, {
+      bookingId: booking._id,
+    });
+
 
     // Update car availability
     car.isAvailable = false;
