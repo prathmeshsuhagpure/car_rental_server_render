@@ -8,9 +8,12 @@ const getHostDashboard = async (req, res) => {
 
     const totalCars = await Car.countDocuments({ hostId });
 
+    const now = new Date();
     const activeRentals = await Booking.countDocuments({
       hostId,
       bookingStatus: "active",
+      startDate: { $lte: now }, 
+      endDate: { $gte: now }, 
     });
 
     const monthlyEarnings = await Booking.aggregate([
