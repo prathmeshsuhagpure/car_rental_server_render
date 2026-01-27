@@ -11,7 +11,7 @@ const getHostDashboard = async (req, res) => {
     const now = new Date();
     const activeRentals = await Booking.countDocuments({
       hostId,
-      bookingStatus: "active",
+      bookingStatus: "completed",
       startDate: { $lte: now }, 
       endDate: { $gte: now }, 
     });
