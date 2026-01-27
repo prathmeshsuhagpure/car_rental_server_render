@@ -88,6 +88,7 @@ const createBooking = async (req, res) => {
     // 5️⃣ Create booking
     const booking = await Booking.create({
       userId: req.user._id,
+      hostId: car.hostId,
       carId,
       amount: finalAmount,
       pickUpLocation,
