@@ -1,6 +1,6 @@
 const Car = require("../models/car_model");
 const Booking = require("../models/booking_model");
-const Review = require("../models/review_model");
+const Review = require('../models/review_model');
 
 const getHostDashboard = async (req, res) => {
   try {
