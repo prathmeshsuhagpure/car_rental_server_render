@@ -63,6 +63,7 @@ const getHostDashboard = async (req, res) => {
     ]);
 
     const recentBookings = await Booking.find({ hostId })
+      .populate("carId", "brand model")
       .sort({ createdAt: -1 })
       .limit(3);
 
@@ -137,10 +138,10 @@ const getHostDashboard = async (req, res) => {
       activeRentals,
       monthlyEarnings: monthlyEarnings[0]?.total || 0,
       rating: ratingData[0]?.avgRating || 0,
-      cars: carsWithRentalInfo, // NEW: Car-specific rental information
+      cars: carsWithRentalInfo, 
       recentActivities: recentBookings.map((b) => ({
-        title: `${b.carName} booked`,
-        subtitle: `${b.startDate.toDateString()} • ₹${b.totalAmount}`,
+        title: `${b.carId?.brand || "Unknown Car"} booked`,
+        subtitle: `${b.startDate.toDateString()} • ₹${b.totalAmount || 0}`,
       })),
     });
   } catch (error) {
