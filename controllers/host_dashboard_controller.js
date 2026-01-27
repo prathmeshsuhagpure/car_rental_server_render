@@ -53,11 +53,12 @@ const getHostDashboard = async (req, res) => {
     ]);
 
     const ratingData = await Review.aggregate([
-      { $match: { hostId } },
+      { $match: { carId: new mongoose.Types.ObjectId(carId), } },
       {
         $group: {
-          _id: null,
+          _id: "$carId",
           avgRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
         },
       },
     ]);
@@ -137,8 +138,8 @@ const getHostDashboard = async (req, res) => {
       totalCars,
       activeRentals,
       monthlyEarnings: monthlyEarnings[0]?.total || 0,
-      //rating: ratingData[0]?.avgRating || 0,
-      rating: ratingData,
+      rating: ratingData[0]?.avgRating || 0,
+      totalReviews: ratingData[0]?.totalReviews || 0,
       cars: carsWithRentalInfo, 
       recentActivities: recentBookings.map((b) => ({
         title: `${b.carId ? `${b.carId.brand} ${b.carId.model}` : "Unknown Car"} booked`,
