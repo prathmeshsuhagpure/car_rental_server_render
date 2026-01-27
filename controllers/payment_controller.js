@@ -151,8 +151,7 @@ const createRazorpayOrder = async (req, res) => {
       razorpayOrderId: order.id,
       amount: amount,
       currency: currency,
-      status: 'created',
-      paymentMethod: 'upi'
+      status: 'created'
     });
 
     res.status(201).json({
@@ -174,77 +173,45 @@ const createRazorpayOrder = async (req, res) => {
 
 const verifyRazorpayPayment = async (req, res) => {
   try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    // Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing payment verification details'
-      });
+      return res.status(400).json({ success: false, message: 'Missing fields' });
     }
 
-    // Create signature for verification
-    const sign = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSign = crypto
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(sign.toString())
+      .update(body)
       .digest('hex');
-      console.log("Using Razorpay Secret:", process.env.RAZORPAY_KEY_SECRET);
 
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(expectedSignature),
+      Buffer.from(razorpay_signature)
+    );
 
-    // Verify signature
-    if (razorpay_signature === expectedSign) {
-      // Find and update payment record
-      /* const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
-
-      if (!payment) {
-        return res.status(404).json({
-          success: false,
-          message: 'Payment record not found'
-        });
-      }
-
-      payment.razorpayPaymentId = razorpay_payment_id;
-      payment.razorpaySignature = razorpay_signature;
-      payment.status = 'captured';
-      await payment.save(); */
-
-      res.status(200).json({
-        success: true,
-        message: 'Payment verified successfully',
-        paymentId: razorpay_payment_id
-      });
-    } else {
-      // Signature verification failed
-      const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
-      if (payment) {
-        payment.status = 'failed';
-        await payment.save();
-      }
-
-      res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      });
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Invalid signature' });
     }
-  } catch (error) {
-    console.error('Verify payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Payment verification failed',
-      error: error.message
-    });
+
+    const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    payment.razorpayPaymentId = razorpay_payment_id;
+    payment.razorpaySignature = razorpay_signature;
+    payment.status = 'captured';
+    await payment.save();
+
+    res.json({ success: true, message: 'Payment verified' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// @desc    Get Payment History
-// @route   GET /api/payments/history
-// @access  Private
+
 const getPaymentHistory = async (req, res) => {
   try {
     const userId = req.user._id;
