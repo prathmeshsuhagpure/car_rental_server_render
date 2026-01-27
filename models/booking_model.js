@@ -57,6 +57,12 @@ const bookingSchema = new mongoose.Schema(
       default: 'pending',
     },
 
+    rentalStatus: {
+      type: String,
+      enum: ["upcoming", "active", "completed"],
+      default: "upcoming",
+    },
+
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Payment',
@@ -80,7 +86,9 @@ bookingSchema.pre('save', function (next) {
 
 bookingSchema.index({ userId: 1, createdAt: -1 });
 bookingSchema.index({ carId: 1, startDate: 1, endDate: 1 });
-//bookingSchema.index({ bookingStatus: 1 });
+bookingSchema.index({ hostId: 1, rentalStatus: 1 });
+bookingSchema.index({ startDate: 1, endDate: 1 });
+
 
 const Booking = mongoose.model('Booking', bookingSchema);
 module.exports = Booking;

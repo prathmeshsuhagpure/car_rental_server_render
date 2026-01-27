@@ -1,4 +1,4 @@
-const Car = require("../models/car_model");
+/* const Car = require("../models/car_model");
 const Booking = require("../models/booking_model");
 const Review = require("../models/review_model");
 
@@ -12,8 +12,7 @@ const getHostDashboard = async (req, res) => {
     const activeRentals = await Booking.countDocuments({
       hostId,
       bookingStatus: "completed",
-      startDate: { $lte: now }, 
-      endDate: { $gte: now }, 
+      rentalStatus: "active",
     });
 
     const monthlyEarnings = await Booking.aggregate([
@@ -64,3 +63,101 @@ const getHostDashboard = async (req, res) => {
 };
 
 module.exports = {getHostDashboard};
+ */
+
+const Car = require("../models/car_model");
+const Booking = require("../models/booking_model");
+const Review = require("../models/review_model");
+
+const getHostDashboard = async (req, res) => {
+  try {
+    const hostId = req.user._id;
+    const now = new Date();
+
+    /* --------------------------------------------------
+       1️⃣ UPDATE RENTAL STATUSES (TIME-BASED LOGIC)
+       -------------------------------------------------- */
+
+    // Upcoming → Active
+    await Booking.updateMany(
+      {
+        bookingStatus: "completed",
+        rentalStatus: "upcoming",
+        startDate: { $lte: now },
+      },
+      { $set: { rentalStatus: "active" } }
+    );
+
+    // Active → Completed
+    await Booking.updateMany(
+      {
+        rentalStatus: "active",
+        endDate: { $lt: now },
+      },
+      { $set: { rentalStatus: "completed" } }
+    );
+
+    /* --------------------------------------------------
+       2️⃣ DASHBOARD METRICS
+       -------------------------------------------------- */
+
+    const totalCars = await Car.countDocuments({ hostId });
+
+    const activeRentals = await Booking.countDocuments({
+      hostId,
+      bookingStatus: "completed",
+      rentalStatus: "active",
+    });
+
+    const monthlyEarnings = await Booking.aggregate([
+      {
+        $match: {
+          hostId,
+          bookingStatus: "completed",
+          startDate: {
+            $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalAmount" },
+        },
+      },
+    ]);
+
+    const ratingData = await Review.aggregate([
+      { $match: { hostId } },
+      {
+        $group: {
+          _id: null,
+          avgRating: { $avg: "$rating" },
+        },
+      },
+    ]);
+
+    const recentBookings = await Booking.find({ hostId })
+      .sort({ createdAt: -1 })
+      .limit(3);
+
+    /* --------------------------------------------------
+       3️⃣ RESPONSE
+       -------------------------------------------------- */
+
+    res.status(200).json({
+      totalCars,
+      activeRentals,
+      monthlyEarnings: monthlyEarnings[0]?.total || 0,
+      rating: ratingData[0]?.avgRating || 0,
+      recentActivities: recentBookings.map((b) => ({
+        title: `${b.carName} booked`,
+        subtitle: `${b.startDate.toDateString()} • ₹${b.totalAmount}`,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Dashboard error", error });
+  }
+};
+
+module.exports = { getHostDashboard };

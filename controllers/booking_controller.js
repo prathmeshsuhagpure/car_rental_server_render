@@ -97,6 +97,7 @@ const createBooking = async (req, res) => {
       paymentId: payment._id,
       bookingStatus: 'completed',
       paymentStatus: 'completed',
+      rentalStatus: "upcoming"
     });
 
     // ✅ UPDATE existing payment with bookingId
