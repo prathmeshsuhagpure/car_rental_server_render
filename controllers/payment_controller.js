@@ -172,6 +172,11 @@ const createRazorpayOrder = async (req, res) => {
 };
 
 const verifyRazorpayPayment = async (req, res) => {
+  console.log('VERIFY BODY:', req.body);
+  console.log('ORDER ID:', razorpay_order_id);
+  console.log('PAYMENT ID:', razorpay_payment_id);
+  console.log('SIGNATURE FROM FLUTTER:', razorpay_signature);
+
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
@@ -184,6 +189,12 @@ const verifyRazorpayPayment = async (req, res) => {
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest('hex');
+      console.log('GENERATED SIGNATURE:', expectedSign);
+      console.log(
+        'SIGNATURE MATCH:',
+          expectedSign === razorpay_signature
+);
+
 
     const isValid = crypto.timingSafeEqual(
       Buffer.from(expectedSignature),
