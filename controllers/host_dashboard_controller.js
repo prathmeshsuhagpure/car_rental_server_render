@@ -121,7 +121,7 @@ const getHostDashboard = async (req, res) => {
         // No active or upcoming rental - car is available or under maintenance
         return {
           carId: car._id.toString(),
-          carName: car.name,
+          carName: car.brand,
           carModel: car.model,
           carImage: car.images && car.images.length > 0 ? car.images[0] : null,
           rentalStatus: "available",
