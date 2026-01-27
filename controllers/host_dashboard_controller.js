@@ -47,7 +47,7 @@ const getHostDashboard = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: "amount" },
+          total: { $sum: "$amount" },
         },
       },
     ]);
