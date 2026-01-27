@@ -4,20 +4,20 @@ const Review = require("../models/review_model");
 
 const getHostDashboard = async (req, res) => {
   try {
-    const hostId = req.user._id; // from auth middleware
+    const hostId = req.user._id; 
 
     const totalCars = await Car.countDocuments({ hostId });
 
     const activeRentals = await Booking.countDocuments({
       hostId,
-      status: "active",
+      bookingStatus: "active",
     });
 
     const monthlyEarnings = await Booking.aggregate([
       {
         $match: {
           hostId,
-          status: "completed",
+          bookingStatus: "completed",
           startDate: {
             $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
