@@ -47,7 +47,7 @@ const getHostDashboard = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: "$totalAmount" },
+          total: { $sum: "amount" },
         },
       },
     ]);
@@ -140,8 +140,8 @@ const getHostDashboard = async (req, res) => {
       rating: ratingData[0]?.avgRating || 0,
       cars: carsWithRentalInfo, 
       recentActivities: recentBookings.map((b) => ({
-        title: `${b.carId?.brand || "Unknown Car"} booked`,
-        subtitle: `${b.startDate.toDateString()} • ₹${b.totalAmount || 0}`,
+        title: `${b.carId ? `${b.carId.brand} ${b.carId.model}` : "Unknown Car"} booked`,
+        subtitle: `${b.startDate.toDateString()} • ₹${b.amount || 0}`,
       })),
     });
   } catch (error) {
