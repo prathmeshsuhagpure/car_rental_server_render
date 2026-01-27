@@ -71,7 +71,7 @@ const createBooking = async (req, res) => {
       userId: req.user._id,
       amount: finalAmount,
       method: paymentMethod || 'unknown',
-      status: 'completed', // or 'pending' if you want to handle async payment
+      paymentStatus: 'completed', // or 'pending' if you want to handle async payment
     });
 
     // 5️⃣ Create booking
