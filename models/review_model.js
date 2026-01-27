@@ -12,6 +12,11 @@ const reviewSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    hostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true
+    },
     rating: {
       type: Number,
       min: 1,
