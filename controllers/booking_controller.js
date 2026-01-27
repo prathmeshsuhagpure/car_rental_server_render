@@ -87,7 +87,7 @@ const createBooking = async (req, res) => {
       paymentStatus: 'completed',
     });
 
-    await Payment.findByIdAndUpdate(paymentId, {
+    await Payment.findByIdAndUpdate(payment._id, {
       bookingId: booking._id,
     });
 
