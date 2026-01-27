@@ -83,9 +83,9 @@ const createBooking = async (req, res) => {
       dropOffLocation,
       startDate: start,
       endDate: end,
-      paymentId: payment.id,
+      paymentId: payment._id,
       bookingStatus: 'completed',
-      paymentStatus: paymentId ? 'completed' : 'pending',
+      paymentStatus: 'completed',
     });
 
     // Update car availability
