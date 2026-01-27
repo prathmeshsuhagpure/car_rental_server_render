@@ -186,11 +186,12 @@ const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
-    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    //const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const sign = `${razorpay_order_id}|${razorpay_payment_id}`;
 
     const expectedSign = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
+      .update(sign)
       .digest('hex');
 
     if (expectedSign !== razorpay_signature) {
@@ -200,11 +201,27 @@ const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
+    // 3️⃣ CREATE or FIND payment record ✅
+    let payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
+    if (!payment) {
+      payment = await Payment.create({
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+        status: 'captured',
+      });
+    } else {
+      payment.razorpayPaymentId = razorpay_payment_id;
+      payment.razorpaySignature = razorpay_signature;
+      payment.status = 'captured';
+      await payment.save();
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Payment verified successfully',
       paymentDbId: payment._id,
-      razorpayPaymentId: razorpay_payment_id,
+      //razorpayPaymentId: razorpay_payment_id,
     });
   } catch (err) {
     console.error('Verify payment crash:', err);
@@ -214,8 +231,6 @@ const verifyRazorpayPayment = async (req, res) => {
     });
   }
 };
-
-
 
 const getPaymentHistory = async (req, res) => {
   try {
