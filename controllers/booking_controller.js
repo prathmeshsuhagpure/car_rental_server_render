@@ -222,11 +222,17 @@ const createBooking = async (req, res) => {
     }
 
     // 4️⃣ Calculate amount if not sent
-    const days =
-      Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
+    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
 
-    const finalAmount =
-      amount ?? days * (car.pricePerDay || 0);
+    const finalAmount = amount ?? days * (car.pricePerDay || 0);
+
+
+    const payment = await Payment.create({
+      userId: req.user._id,
+      amount: finalAmount,
+      method: paymentMethod || 'unknown',
+      status: 'completed', // or 'pending' if you want to handle async payment
+    });
 
     // 5️⃣ Create booking
     const booking = await Booking.create({
@@ -237,7 +243,7 @@ const createBooking = async (req, res) => {
       dropOffLocation,
       startDate: start,
       endDate: end,
-      paymentId,
+      paymentId: payment.id,
       bookingStatus: 'completed',
       paymentStatus: paymentId ? 'completed' : 'pending',
     });
