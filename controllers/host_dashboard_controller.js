@@ -68,7 +68,7 @@ const getHostDashboard = async (req, res) => {
 
     // Get all cars for this host
     const hostCars = await Car.find({ hostId }).select(
-      "_id name model images"
+      "_id brand model images"
     );
 
     // For each car, find its current rental status
