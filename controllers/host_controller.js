@@ -166,7 +166,7 @@ const getHostBookings = async (req, res) => {
       .populate("userId", "name")
       .sort({ createdAt: -1 });
 
-    const formatted = bookings.map((b) => ({
+    const response = bookings.map((b) => ({
       startDate: b.startDate,
       endDate: b.endDate,
       amount: b.amount,
@@ -180,12 +180,13 @@ const getHostBookings = async (req, res) => {
       userName: b.userId?.name ?? "Unknown",
     }));
 
-    res.status(200).json(formatted);
+    res.status(200).json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 module.exports = { getHostDashboard, getHostCars, getHostBookings };
