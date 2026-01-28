@@ -68,20 +68,12 @@ const getReviewsByCar = async (req, res) => {
     const { carId } = req.params;
 
     const reviews = await Review.find({ carId })
-      .sort({ createdAt: -1 })
-      .select('_id userName rating comment');
+      .populate('userId', 'name avatar')
+      .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      count: reviews.length,
-      reviews,
-    });
+    res.status(200).json(reviews);
   } catch (error) {
-    console.error('Get Reviews Error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    res.status(500).json({ message: error.message });
   }
 };
 
