@@ -3,6 +3,7 @@ const Car = require('../models/car_model');
 const User = require('../models/user_model');
 const Payment = require('../models/payment_model')
 const admin = require('firebase-admin');
+import { v4 as uuidv4 } from "uuid";
 
 const createBooking = async (req, res) => {
   try {
@@ -16,7 +17,7 @@ const createBooking = async (req, res) => {
       paymentId, 
     } = req.body;
 
-    // 1️⃣ Validate car
+    // Validate car
     const car = await Car.findById(carId);
     if (!car) {
       return res.status(404).json({ 
@@ -33,7 +34,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // 2️⃣ Validate dates
+    // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -44,7 +45,7 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // 3️⃣ Prevent overlapping bookings
+    // Prevent overlapping bookings
     const conflict = await Booking.findOne({
       carId,
       bookingStatus: { $in: ['pending', 'active'] },
@@ -60,11 +61,9 @@ const createBooking = async (req, res) => {
       });
     }
 
-    // 4️⃣ Calculate amount if not sent
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) || 1;
     const finalAmount = amount ?? days * (car.pricePerDay || 0);
 
-    // ✅ VERIFY that payment exists and belongs to user
     if (!paymentId) {
       return res.status(400).json({
         success: false,
@@ -75,7 +74,7 @@ const createBooking = async (req, res) => {
     const payment = await Payment.findOne({
       _id: paymentId,
       userId: req.user._id,
-      status: 'captured', // ✅ Ensure payment was verified
+      status: 'captured',
     });
 
     if (!payment) {
@@ -87,6 +86,7 @@ const createBooking = async (req, res) => {
 
     // 5️⃣ Create booking
     const booking = await Booking.create({
+      bookingId: uuidv4(),
       userId: req.user._id,
       hostId: car.hostId,
       carId,
@@ -101,7 +101,7 @@ const createBooking = async (req, res) => {
       rentalStatus: "upcoming"
     });
 
-    // ✅ UPDATE existing payment with bookingId
+    // UPDATE existing payment with bookingId
     await Payment.findByIdAndUpdate(payment._id, {
       bookingId: booking._id,
     });
