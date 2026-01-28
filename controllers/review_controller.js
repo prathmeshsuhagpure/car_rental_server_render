@@ -3,8 +3,7 @@ const Review = require('../models/review_model');
 
 const addReview = async (req, res) => {
   try {
-    const { carId, rating, comment } = req.body;
-    const userId = req.user.id;
+    const { carId, rating, comment, userId } = req.body;
     const userName = req.user.name;
 
     if (!carId || !rating || !comment) {
