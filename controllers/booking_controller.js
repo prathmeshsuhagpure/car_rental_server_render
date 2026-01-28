@@ -3,7 +3,7 @@ const Car = require('../models/car_model');
 const User = require('../models/user_model');
 const Payment = require('../models/payment_model')
 const admin = require('firebase-admin');
-import { v4 as uuidv4 } from "uuid";
+const { v4: uuidv4 } = require("uuid");
 
 const createBooking = async (req, res) => {
   try {
