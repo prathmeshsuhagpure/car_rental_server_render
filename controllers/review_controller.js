@@ -3,19 +3,39 @@ const Review = require('../models/review_model');
 
 const addReview = async (req, res) => {
   try {
-    const { carId, userId, rating, comment } = req.body;
+    const { carId, rating, comment } = req.body;
+    const userId = req.user.id;
+    const userName = req.user.name;
 
-    // ✅ Basic validation
-    if (!carId || !userId || !rating) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (!carId || !rating || !comment) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+      });
+    }
+
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5',
+      });
+    }
+
+    const existingReview = await Review.findOne({ carId, userId });
+    if (existingReview) {
+      return res.status(409).json({
+        success: false,
+        message: 'You have already reviewed this car',
+      });
     }
 
     // 1️⃣ Save review
-    await Review.create({
+    const review = await Review.create({
       carId,
       userId,
       rating,
       comment,
+      userName,
     });
 
     // 2️⃣ Fetch car
@@ -50,12 +70,20 @@ const getReviewsByCar = async (req, res) => {
     const { carId } = req.params;
 
     const reviews = await Review.find({ carId })
-      .populate('userId', 'name avatar')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .select('_id userName rating comment');
 
-    res.status(200).json(reviews);
+    return res.status(200).json({
+      success: true,
+      count: reviews.length,
+      reviews,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Get Reviews Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
   }
 };
 
