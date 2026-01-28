@@ -1,7 +1,6 @@
 const Car = require("../models/car_model");
 const Booking = require("../models/booking_model");
 const Review = require('../models/review_model');
-const mongoose = require('mongoose');
 
 const getHostDashboard = async (req, res) => {
   try {
@@ -54,7 +53,7 @@ const getHostDashboard = async (req, res) => {
     ]);
 
     const ratingData = await Review.aggregate([
-      { $match: { carId: new mongoose.Types.ObjectId(carId), } },
+      { $match: hostId},
       {
         $group: {
           _id: "$carId",
