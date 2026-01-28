@@ -1,7 +1,6 @@
 const Car = require("../models/car_model");
 const Booking = require("../models/booking_model");
 const Review = require('../models/review_model');
-const mongoose = require("mongoose");
 
 const getHostDashboard = async (req, res) => {
   try {
@@ -49,37 +48,6 @@ const getHostDashboard = async (req, res) => {
         $group: {
           _id: null,
           total: { $sum: "$amount" },
-        },
-      },
-    ]);
-
-    const ratingData = await Review.aggregate([
-      // 1️⃣ Join Car collection
-      {
-        $lookup: {
-          from: "cars", // 👈 collection name (plural, lowercase)
-          localField: "carId",
-          foreignField: "_id",
-          as: "car",
-        },
-      },
-
-      // 2️⃣ Unwind car array
-      { $unwind: "$car" },
-
-      // 3️⃣ Match hostId from car
-      {
-        $match: {
-          "car.hostId": new mongoose.Types.ObjectId(hostId),
-        },
-      },
-
-      // 4️⃣ Group by carId & calculate average rating
-      {
-        $group: {
-          _id: "$carId",
-          avgRating: { $avg: "$rating" },
-          totalReviews: { $sum: 1 },
         },
       },
     ]);
@@ -159,7 +127,6 @@ const getHostDashboard = async (req, res) => {
       totalCars,
       activeRentals,
       monthlyEarnings: monthlyEarnings[0]?.total || 0,
-      rating: ratingData[0]?.avgRating || 0,
       cars: carsWithRentalInfo,
       recentActivities: recentBookings.map((b) => ({
         title: `${b.carId ? `${b.carId.brand} ${b.carId.model}` : "Unknown Car"} booked`,
