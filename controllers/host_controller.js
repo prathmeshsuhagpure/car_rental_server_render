@@ -173,9 +173,9 @@ const getHostBookings = async (req, res) => {
       bookingStatus: b.bookingStatus,
       car: b.carId
         ? {
-            brand: b.carId.brand,
-            images: b.carId.images,
-          }
+          brand: b.carId.brand,
+          images: b.carId.images,
+        }
         : null,
       userName: b.userId?.name ?? "Unknown",
     }));
@@ -187,6 +187,67 @@ const getHostBookings = async (req, res) => {
   }
 };
 
+const getHostEarnings = async (req, res) => {
+  try {
+    const hostId = req.user._id;
 
+    const earnings = await Booking.aggregate([
+      {
+        $match: {
+          hostId: new mongoose.Types.ObjectId(hostId),
+          bookingStatus: "completed",
+          paymentStatus: "completed",
+        },
+      },
+      {
+        $lookup: {
+          from: "cars",
+          localField: "carId",
+          foreignField: "_id",
+          as: "car",
+        },
+      },
+      { $unwind: "$car" },
 
-module.exports = { getHostDashboard, getHostCars, getHostBookings };
+      // group by car
+      {
+        $group: {
+          _id: "$car._id",
+          carBrand: { $first: "$car.brand" },
+          carModel: { $first: "$car.model" },
+          carImage: { $first: { $arrayElemAt: ["$car.images", 0] } },
+          carEarnings: { $sum: "$amount" },
+        },
+      },
+
+      // collect total earnings
+      {
+        $group: {
+          _id: null,
+          totalEarnings: { $sum: "$carEarnings" },
+          cars: {
+            $push: {
+              carId: "$_id",
+              brand: "$carBrand",
+              model: "$carModel",
+              image: "$carImage",
+              earnings: "$carEarnings",
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json(
+      earnings[0] || {
+        totalEarnings: 0,
+        cars: [],
+      }
+    );
+  } catch (error) {
+    console.error("Host earnings error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { getHostDashboard, getHostCars, getHostBookings, getHostEarnings, };
