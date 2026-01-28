@@ -176,9 +176,10 @@ const getHostBookings = async (req, res) => {
       },
       { $unwind: "$car" },
 
+      // ✅ FIXED MATCH
       {
         $match: {
-          "car.hostId": new mongoose.ObjectId(hostId.t),
+          "car.hostId": new mongoose.Types.ObjectId(hostId),
         },
       },
 
@@ -192,9 +193,7 @@ const getHostBookings = async (req, res) => {
       },
       { $unwind: "$user" },
 
-      {
-        $sort: { createdAt: -1 },
-      },
+      { $sort: { createdAt: -1 } },
 
       {
         $project: {
