@@ -1,6 +1,5 @@
 const Car = require("../models/car_model");
 const Booking = require("../models/booking_model");
-const Review = require('../models/review_model');
 
 const getHostDashboard = async (req, res) => {
   try {
@@ -139,4 +138,22 @@ const getHostDashboard = async (req, res) => {
   }
 };
 
-module.exports = { getHostDashboard };
+const getHostCars = async (req, res) => {
+  try {
+    const hostId = req.user._id;
+
+    if (!hostId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const cars = await Car.find({ hostId })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(cars);
+  } catch (error) {
+    console.error("Error fetching host cars:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { getHostDashboard, getHostCars };

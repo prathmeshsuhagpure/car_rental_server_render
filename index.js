@@ -9,7 +9,7 @@ const carRoutes = require('./routes/car_route');
 const bookingRoutes = require('./routes/booking_route');
 const paymentRoutes = require('./routes/payment_route');
 const reviewRoutes = require('./routes/review_route');
-const hostDashboardRoutes = require('./routes/host_dashboard_route')
+const hostRoutes = require('./routes/host_route')
 
 const app = express();
 
@@ -31,7 +31,7 @@ app.use('/api/cars', carRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/', reviewRoutes);
-app.use('/api/', hostDashboardRoutes);
+app.use('/api/host', hostRoutes);
 
 // Start server const 
 PORT = process.env.PORT; 
