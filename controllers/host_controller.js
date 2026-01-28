@@ -161,63 +161,31 @@ const getHostBookings = async (req, res) => {
   try {
     const hostId = req.user._id;
 
-    if (!hostId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    const bookings = await Booking.find({ hostId })
+      .populate("carId", "brand images")
+      .populate("userId", "name")
+      .sort({ createdAt: -1 });
 
-    const bookings = await Booking.aggregate([
-      {
-        $lookup: {
-          from: "cars",
-          localField: "carId",
-          foreignField: "_id",
-          as: "car",
-        },
-      },
-      { $unwind: "$car" },
+    const formatted = bookings.map((b) => ({
+      startDate: b.startDate,
+      endDate: b.endDate,
+      amount: b.amount,
+      bookingStatus: b.bookingStatus,
+      car: b.carId
+        ? {
+            brand: b.carId.brand,
+            images: b.carId.images,
+          }
+        : null,
+      userName: b.userId?.name ?? "Unknown",
+    }));
 
-      // ✅ FIXED MATCH
-      {
-        $match: {
-          "car.hostId": new mongoose.Types.ObjectId(hostId),
-        },
-      },
-
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-
-      { $sort: { createdAt: -1 } },
-
-      {
-        $project: {
-          startDate: 1,
-          endDate: 1,
-          totalPrice: 1,
-          status: 1,
-          createdAt: 1,
-          car: {
-            title: "$car.title",
-            images: "$car.images",
-          },
-          user: {
-            name: "$user.name",
-          },
-        },
-      },
-    ]);
-
-    res.status(200).json(bookings);
-  } catch (error) {
-    console.error("Error fetching host bookings:", error);
+    res.status(200).json(formatted);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 module.exports = { getHostDashboard, getHostCars, getHostBookings };
