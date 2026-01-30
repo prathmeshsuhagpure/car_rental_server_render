@@ -213,28 +213,42 @@ const cancelBooking = async (req, res) => {
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Booking not found' });
     }
 
     if (booking.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Unauthorized' });
+      return res
+        .status(403)
+        .json({ success: false, message: 'Unauthorized' });
     }
 
-    if (booking.bookingStatus !== 'active' && booking.bookingStatus !== 'pending') {
+    if (!['active', 'pending'].includes(booking.bookingStatus)) {
       return res.status(400).json({
         success: false,
         message: 'Booking cannot be cancelled',
       });
     }
 
-    booking.bookingStatus == 'cancelled';
+    // ✅ FIX HERE
+    booking.bookingStatus = 'cancelled';
+
     await booking.save();
 
-    res.status(200).json({ success: true, data: booking });
+    return res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: booking,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 
 const getAllBookings = async (req, res) => {
   try {
