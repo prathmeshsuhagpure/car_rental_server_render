@@ -158,7 +158,7 @@ const createBooking = async (req, res) => {
 
     const populatedBooking = await Booking.findById(booking._id)
   .populate({
-    path: 'car',
+    path: 'carId',
     select: 'brand model images transmission fuelType seats pricePerDay',
   });
 
