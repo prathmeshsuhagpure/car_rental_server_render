@@ -224,7 +224,7 @@ const cancelBooking = async (req, res) => {
         .json({ success: false, message: 'Unauthorized' });
     }
 
-    if (!['active', 'pending'].includes(booking.bookingStatus)) {
+    if (!['active', 'pending', 'completed'].includes(booking.bookingStatus)) {
       return res.status(400).json({
         success: false,
         message: 'Booking cannot be cancelled',
