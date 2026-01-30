@@ -110,6 +110,17 @@ const createBooking = async (req, res) => {
     car.isAvailable = false;
     await car.save();
 
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate({
+        path: 'carId',
+        select:
+          'brand model images transmission fuelType seats pricePerDay',
+      })
+      .populate({
+        path: 'userId',
+        select: 'name email phone',
+      });
+
     // Notify host
     const host = await User.findById(car.hostId);
     if (host?.fcmToken) {
@@ -140,7 +151,7 @@ const createBooking = async (req, res) => {
         token: customer.fcmToken,
         notification: {
           title: 'Booking Confirmed',
-          body: `You booked ${carId} from ${startDate} to ${endDate}.`,
+          body: `You booked ${car.brand} from ${startDate} to ${endDate}.`,
         },
         data: {
           type: 'booking',
@@ -156,15 +167,9 @@ const createBooking = async (req, res) => {
       }
     }
 
-    /* const populatedBooking = await Booking.findById(booking._id)
-      .populate({
-        path: 'carId',
-        select: 'brand model images transmission fuelType seats pricePerDay',
-      }); */
-
     res.status(201).json({
       success: true,
-      data: booking,
+      data: populatedBooking,
       message: "Booking created successfully",
     });
   } catch (error) {
