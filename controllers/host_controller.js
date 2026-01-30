@@ -162,30 +162,29 @@ const getHostBookings = async (req, res) => {
     const hostId = req.user._id;
 
     const bookings = await Booking.find({ hostId })
-      .populate("carId", "brand images")
-      .populate("userId", "name")
+      .populate({
+        path: "carId",
+        select: "brand images model transmission fuelType seats pricePerDay",
+      })
+      .populate({
+        path: "userId",
+        select: "name email",
+      })
       .sort({ createdAt: -1 });
 
-    const response = bookings.map((b) => ({
-      startDate: b.startDate,
-      endDate: b.endDate,
-      amount: b.amount,
-      bookingStatus: b.bookingStatus,
-      car: b.carId
-        ? {
-          brand: b.carId.brand,
-          images: b.carId.images,
-        }
-        : null,
-      userName: b.userId?.name ?? "Unknown",
-    }));
-
-    res.status(200).json(response);
+    res.status(200).json({
+      success: true,
+      data: bookings,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
+
 
 const getHostEarnings = async (req, res) => {
   try {
