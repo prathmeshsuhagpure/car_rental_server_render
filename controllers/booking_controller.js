@@ -120,6 +120,10 @@ const createBooking = async (req, res) => {
         path: 'userId',
         select: 'name email phone',
       });
+    console.log(
+      'BOOKING RESPONSE:',
+      JSON.stringify(populatedBooking, null, 2)
+    );
 
     // Notify host
     const host = await User.findById(car.hostId);
