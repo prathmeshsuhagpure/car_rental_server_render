@@ -227,7 +227,7 @@ const cancelBooking = async (req, res) => {
       });
     }
 
-    booking.bookingStatus = 'cancelled';
+    booking.bookingStatus == 'cancelled';
     await booking.save();
 
     res.status(200).json({ success: true, data: booking });
