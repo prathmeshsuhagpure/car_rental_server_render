@@ -156,6 +156,12 @@ const createBooking = async (req, res) => {
       }
     }
 
+    const populatedBooking = await Booking.findById(booking._id)
+  .populate({
+    path: 'car',
+    select: 'brand model images transmission fuelType seats pricePerDay',
+  });
+
     res.status(201).json({
       success: true,
       data: booking,
