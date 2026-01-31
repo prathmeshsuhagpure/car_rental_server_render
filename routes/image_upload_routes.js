@@ -23,7 +23,7 @@ router.post(
 
         const images = req.files.map(file => ({
             imageId: file.id,
-            imageUrl: `${process.env.BASE_URL}/api/carImages/${file.id}`,
+            imageUrl: `${process.env.BASE_URL}/api/images/${file.id}`,
         }));
 
         res.status(201).json({
