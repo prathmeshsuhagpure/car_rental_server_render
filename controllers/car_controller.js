@@ -81,12 +81,12 @@ const createCar = async (req, res) => {
 
 const updateCarAvailability = async (req, res) => {
   try {
-    const { carId } = req.params;
+    const { id } = req.params;
     const { isAvailable } = req.body;
     const userId = req.user.id; 
 
-    const car = await Car.findById(carId);
-    console.log(carId)
+    const car = await Car.findById(id);
+    console.log(id)
 
     if (!car) {
       return res.status(404).json({
