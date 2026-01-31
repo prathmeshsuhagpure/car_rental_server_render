@@ -1,4 +1,5 @@
 const Car = require('../models/car_model');
+const booking = require('../models/booking_model');
 const upload = require('../middlewares/upload_middleware');
 
 const getCars = async (req, res) => {
@@ -78,58 +79,125 @@ const createCar = async (req, res) => {
   }
 };
 
-const updateCar = async (req, res) => {
+const updateCarAvailability = async (req, res) => {
   try {
-    let car = await Car.findById(req.params.id);
-    
+    const { carId } = req.params;
+    const { isAvailable } = req.body;
+    const userId = req.user.id; 
+
+    const car = await Car.findById(carId);
+
     if (!car) {
       return res.status(404).json({
         success: false,
-        message: 'Car not found',
+        message: 'Car not found'
       });
     }
-    
-    car = await Car.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-    
+
+    if (car.host.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this car'
+      });
+    }
+
+    if (!isAvailable) {
+      const upcomingBookings = await Booking.find({
+        car: carId,
+        rentalStatus: { $in: ['active', 'upcoming'] },
+        startDate: { $gte: new Date() }
+      });
+
+      if (upcomingBookings.length > 0) {
+        // You can either prevent it or just warn
+        // For warning (still allow the update):
+        car.isAvailable = isAvailable;
+        await car.save();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Car availability updated successfully',
+          warning: `This car has ${upcomingBookings.length} upcoming booking(s)`,
+          data: car
+        });
+      }
+    }
+
+    // Update the availability
+    car.isAvailable = isAvailable;
+    await car.save();
+
     res.status(200).json({
       success: true,
-      data: car,
+      message: `Car marked as ${isAvailable ? 'available' : 'unavailable'} successfully`,
+      data: car
     });
+
   } catch (error) {
+    console.error('Error updating car availability:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Failed to update car availability',
+      error: error.message
     });
   }
 };
 
-// @desc    Delete car
-// @route   DELETE /api/cars/:id
-// @access  Private/Admin
 const deleteCar = async (req, res) => {
   try {
-    const car = await Car.findById(req.params.id);
-    
+    const { carId } = req.params;
+    const userId = req.user.id; 
+
+    const car = await Car.findById(carId);
+
     if (!car) {
       return res.status(404).json({
         success: false,
-        message: 'Car not found',
+        message: 'Car not found'
       });
     }
-    
-    await car.remove();
-    
+
+    if (car.host.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to delete this car'
+      });
+    }
+
+    const activeBookings = await Booking.find({
+      car: carId,
+      rentalStatus: { $in: ['active', 'upcoming'] },
+      endDate: { $gte: new Date() }
+    });
+
+    if (activeBookings.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete car with active bookings. Please cancel or complete all bookings first.',
+        activeBookingsCount: activeBookings.length
+      });
+    }
+
+    // Delete the car
+    await Car.findByIdAndDelete(carId);
+
+    // Optional: You might want to also update or delete related bookings
+    // await Booking.updateMany(
+    //   { car: carId },
+    //   { $set: { bookingStatus: 'cancelled' } }
+    // );
+
     res.status(200).json({
       success: true,
-      data: {},
+      message: 'Car deleted successfully'
     });
+
   } catch (error) {
+    console.error('Error deleting car:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Failed to delete car',
+      error: error.message
     });
   }
 };
@@ -138,7 +206,6 @@ const uploadCarImages = async (req, res) => {
   try {
     const { carId } = req.params;
 
-    // 1. Validate carId
     if (!carId) {
       return res.status(400).json({
         success: false,
@@ -146,7 +213,6 @@ const uploadCarImages = async (req, res) => {
       });
     }
 
-    // 2. Validate files
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -154,7 +220,6 @@ const uploadCarImages = async (req, res) => {
       });
     }
 
-    // 3. Find car
     const car = await Car.findById(carId);
     if (!car) {
       return res.status(404).json({
@@ -163,7 +228,6 @@ const uploadCarImages = async (req, res) => {
       });
     }
 
-    // 4. Enforce max 10 images
     if (car.images.length + req.files.length > 10) {
       return res.status(400).json({
         success: false,
@@ -171,14 +235,11 @@ const uploadCarImages = async (req, res) => {
       });
     }
 
-    // 5. Extract Cloudinary URLs
     const imageUrls = req.files.map(file => file.path);
 
-    // 6. Save to MongoDB
     car.images.push(...imageUrls);
     await car.save();
 
-    // 7. Return updated data
     res.status(200).json({
       success: true,
       images: imageUrls,
@@ -200,7 +261,7 @@ module.exports = {
   getCars,
   getCar,
   createCar,
-  updateCar,
+  updateCarAvailability,
   deleteCar,
   uploadCarImages,
 };
