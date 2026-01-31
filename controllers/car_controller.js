@@ -86,6 +86,7 @@ const updateCarAvailability = async (req, res) => {
     const userId = req.user.id; 
 
     const car = await Car.findById(carId);
+    console.log(carId)
 
     if (!car) {
       return res.status(404).json({

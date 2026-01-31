@@ -132,7 +132,7 @@ const createBooking = async (req, res) => {
         token: host.fcmToken,
         notification: {
           title: 'New Booking Received',
-          body: `Your car ${car.brand} is booked from ${startDate} to ${endDate}`,
+          body: `Your car ${car.brand + car.model} is booked from ${startDate} to ${endDate}`,
         },
         data: {
           type: 'booking',
@@ -155,7 +155,7 @@ const createBooking = async (req, res) => {
         token: customer.fcmToken,
         notification: {
           title: 'Booking Confirmed',
-          body: `You booked ${car.brand} from ${startDate} to ${endDate}.`,
+          body: `You booked ${car.brand + car.model} from ${startDate} to ${endDate}.`,
         },
         data: {
           type: 'booking',
