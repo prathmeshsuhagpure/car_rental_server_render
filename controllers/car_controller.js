@@ -95,7 +95,7 @@ const updateCarAvailability = async (req, res) => {
       });
     }
 
-    if (car.host.toString() !== userId) {
+    if (car.hostId.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to update this car'
@@ -146,10 +146,10 @@ const updateCarAvailability = async (req, res) => {
 
 const deleteCar = async (req, res) => {
   try {
-    const { carId } = req.params;
+    const { id } = req.params;
     const userId = req.user.id; 
 
-    const car = await Car.findById(carId);
+    const car = await Car.findById(id);
 
     if (!car) {
       return res.status(404).json({
@@ -158,7 +158,7 @@ const deleteCar = async (req, res) => {
       });
     }
 
-    if (car.host.toString() !== userId) {
+    if (car.hostId.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to delete this car'
